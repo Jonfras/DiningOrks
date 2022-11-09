@@ -1,19 +1,21 @@
 package net.htlgkr.krejo.diningOrks;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Ork implements Callable<Integer> {
-    private int id;
-    private final Object leftDagger;
-    private final Object rightDagger;
-    static ReentrantLock lock;
+    int id;
+    final Lock leftDagger;
+    final Lock rightDagger;
 
-    public Ork(int id, Object rightDagger, Object leftDagger, ReentrantLock lock) {
+
+    public Ork(int id, Lock ld, Lock rd) {
         this.id = id;
-        this.leftDagger = leftDagger;
-        this.rightDagger = rightDagger;
-        Ork.lock = lock;
+        leftDagger = ld;
+        rightDagger = rd;
     }
 
     private void trackTime(String activity) {
@@ -28,42 +30,28 @@ public class Ork implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         while (true) {
-            trackTime("drinking");
-            synchronized (leftDagger) {
-                trackTime("LEFT DAGGER");
-                lock.lock();
+            trackTime("thinking");
+
+            if (leftDagger.tryLock()) {
                 try {
-                    trackTime("RIGHT DAGGER - EATING");
-                    Thread.sleep((long) (Math.random() * 100));
-                    trackTime("finished Eating");
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                    trackTime("grabbed left fork");
+                    if (rightDagger.tryLock()) {
+                        try {
+                            trackTime("grabbed right fork - EATING NOW");
+                            trackTime("finished eating");
+                        } finally {
+                            trackTime("put down right fork");
+                            rightDagger.unlock();
+                        }
+                    }
                 } finally {
-                    lock.unlock();
+                    leftDagger.unlock();
+                    trackTime("put down left fork");
+
                 }
             }
         }
     }
 }
-//creates Deadlocks
-//        while (true) {
-//            trackTime("drinking");
-//            synchronized (leftDagger) {
-//                try {
-//                    trackTime("LEFT DAGGER");
-//                    synchronized (rightDagger) {
-//                        try {
-//                            trackTime("RIGHT DAGGER - EATING");
-//                            Thread.sleep((long) (Math.random() * 100));
-//                            trackTime("finished Eating");
-//                        } catch (InterruptedException e) {
-//                            throw new RuntimeException(e);
-//                        }
-//                    }
-//                } catch (RuntimeException e) {
-//                    throw new RuntimeException(e);
-//                }
-//            }
-//        }
-//    }
+
 
